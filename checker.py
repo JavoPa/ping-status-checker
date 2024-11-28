@@ -7,7 +7,15 @@ import os
 
 def ping(ip):
     try:
-        output = subprocess.check_output(["ping", "-n", "1", ip], stderr=subprocess.STDOUT, universal_newlines=True)
+        # Usar CREATE_NO_WINDOW para evitar abrir una ventana de terminal
+        startupinfo = subprocess.STARTUPINFO()
+        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        output = subprocess.check_output(
+            ["ping", "-n", "1", ip],
+            stderr=subprocess.STDOUT,
+            universal_newlines=True,
+            startupinfo=startupinfo
+        )
         if "TTL=" in output:
             return True
         else:
