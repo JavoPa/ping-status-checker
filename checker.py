@@ -18,8 +18,10 @@ def ping(ip):
 def update_status(tree, ip, item):
     if ping(ip):
         tree.item(item, tags=('online',))
+        tree.set(item, column='Status', value='Online')
     else:
         tree.item(item, tags=('offline',))
+        tree.set(item, column='Status', value='Offline')
 
 def load_data():
     try:
@@ -29,15 +31,20 @@ def load_data():
         return
 
     for index, row in df.iterrows():
-        item = tree.insert('', 'end', text=row['IP'], values=(row['Description'], 'Checking...'))
-        threading.Thread(target=update_status, args=(tree, row['IP'], item)).start()
+        item = tree.insert('', 'end', values=(row['IP'], row['Description'], 'Checking...'))
+        update_status_periodically(tree, row['IP'], item)
+
+def update_status_periodically(tree, ip, item):
+    threading.Thread(target=lambda: update_status(tree, ip, item)).start()
+    tree.after(5000, update_status_periodically, tree, ip, item) # 5000 millisegundos = 5 segundos
 
 root = tk.Tk()
 root.title("IP Status Checker")
 
-tree = ttk.Treeview(root, columns=('Description', 'Status'), show='headings')
-tree.heading('Description', text='Description')
-tree.heading('Status', text='Status')
+tree = ttk.Treeview(root, columns=('IP', 'Description', 'Status'), show='headings')
+tree.heading('IP', text='IP')
+tree.heading('Description', text='Descripción')
+tree.heading('Status', text='Estado')
 tree.pack(fill=tk.BOTH, expand=True)
 
 tree.tag_configure('online', background='green')
