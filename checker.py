@@ -16,19 +16,28 @@ def ping(ip):
         return False
 
 def update_status(tree, ip, item):
-    if ping(ip):
-        tree.item(item, tags=('online',))
-        tree.set(item, column='Status', value='Online')
-    else:
-        tree.item(item, tags=('offline',))
-        tree.set(item, column='Status', value='Offline')
+    if item in tree.get_children():
+        if ping(ip):
+            tree.after(0, lambda: update_tree_item(tree, item, 'online', 'Online'))
+        else:
+            tree.after(0, lambda: update_tree_item(tree, item, 'offline', 'Offline'))
+
+def update_tree_item(tree, item, tag, status):
+    if item in tree.get_children():
+        tree.item(item, tags=(tag,))
+        tree.set(item, column='Status', value=status)
+
+def create_default_xlsx():
+    df = pd.DataFrame(columns=['IP', 'Description'])
+    df.to_excel('ips.xlsx', index=False)
 
 def load_data():
-    try:
-        df = pd.read_excel('ips.xlsx')
-    except FileNotFoundError:
-        messagebox.showerror("Error", "El archivo 'ips.xlsx' no existe.")
+    if not os.path.exists('ips.xlsx'):
+        create_default_xlsx()
+        messagebox.showinfo("Información", "El archivo 'ips.xlsx' no existía y ha sido creado. Por favor, añada las IPs y descripciones y vuelva a cargar la aplicación.")
         return
+
+    df = pd.read_excel('ips.xlsx')
 
     for index, row in df.iterrows():
         item = tree.insert('', 'end', values=(row['IP'], row['Description'], 'Checking...'))
@@ -36,7 +45,12 @@ def load_data():
 
 def update_status_periodically(tree, ip, item):
     threading.Thread(target=lambda: update_status(tree, ip, item)).start()
-    tree.after(5000, update_status_periodically, tree, ip, item) # 5000 millisegundos = 5 segundos
+    tree.after(5000, update_status_periodically, tree, ip, item) # 5000 milisegundos = 5 segundos
+
+def refresh_data():
+    for item in tree.get_children():
+        tree.delete(item)
+    load_data()
 
 root = tk.Tk()
 root.title("IP Status Checker")
@@ -49,6 +63,9 @@ tree.pack(fill=tk.BOTH, expand=True)
 
 tree.tag_configure('online', background='green')
 tree.tag_configure('offline', background='red')
+
+refresh_button = tk.Button(root, text="Actualizar", command=refresh_data)
+refresh_button.pack(pady=10)
 
 load_data()
 
